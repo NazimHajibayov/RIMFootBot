@@ -92,13 +92,13 @@ def main():
 
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    # 🟢 Wednesday 11:45 – Start voting
+    # 🟢 Wednesday 11:58 – Start voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=45)
+                      'cron', day_of_week='wed', hour=11, minute=58)
 
-    # 🔴 Wednesday 11:46 – Stop voting
+    # 🔴 Wednesday 11:59 – Stop voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=46)
+                      'cron', day_of_week='wed', hour=11, minute=59)
 
     scheduler.start()
     logger.info("✅ Scheduler started (Asia/Baku)")
