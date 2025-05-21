@@ -18,7 +18,7 @@ chat_id = None
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-VOTE_HEADER = "Cybernet Football:\n3-cü gün 20:00 oyununa gələnlər. Siyahıya qoşulmaq üçün `+`, çıxmaq ücün isə `-` yazın:\n"
+VOTE_HEADER = "DOST Football:\n3-cü gün 20:00 oyununa gələnlər. Siyahıya qoşulmaq üçün `+`, çıxmaq ücün isə `-` yazın:\n"
 
 def format_list():
     if not voters:
@@ -28,7 +28,7 @@ def format_list():
 async def send_vote_message(context: ContextTypes.DEFAULT_TYPE, with_reminder: bool = False):
     if chat_id:
         if with_reminder:
-            await context.bot.send_message(chat_id=chat_id, text="📢 Salam! Cybernet Futbol üçün qeydiyyat başladı. Kim gəlir? `+` yaz, çıxırsansa `-` yaz! ⚽️")
+            await context.bot.send_message(chat_id=chat_id, text="📢 Salam! DOST Futbol üçün qeydiyyat başladı. Kim gəlir? `+` yaz, çıxırsansa `-` yaz! ⚽️")
         await context.bot.send_message(chat_id=chat_id, text=format_list())
         logger.info("[send_vote_message] Sent vote list")
 
