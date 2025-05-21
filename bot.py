@@ -2,7 +2,7 @@ import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
 import os
 
@@ -27,6 +27,7 @@ async def send_vote_message(context: ContextTypes.DEFAULT_TYPE):
     if chat_id:
         msg = await context.bot.send_message(chat_id=chat_id, text=format_list())
         vote_message_id = msg.message_id
+        logger.info(f"[send_vote_message] Message sent with ID {vote_message_id}")
 
 async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
     if chat_id and vote_message_id:
@@ -36,20 +37,26 @@ async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
                 message_id=vote_message_id,
                 text=format_list()
             )
+            logger.info("[update_vote_message] Message updated")
         except Exception as e:
-            logger.warning(f"Failed to update message: {e}")
+            logger.warning(f"[update_vote_message] Failed to update message: {e}")
 
 def clear_voters():
     global voters
     voters.clear()
 
 async def start_vote(context: ContextTypes.DEFAULT_TYPE):
+    if not chat_id:
+        logger.warning("[start_vote] No chat_id set, skipping vote start")
+        return
     clear_voters()
     await send_vote_message(context)
 
 async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
-    clear_voters()
-    await context.bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
+    if chat_id:
+        clear_voters()
+        await context.bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
+        logger.info("[stop_vote] Vote stopped and list cleared")
 
 async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global voters
@@ -71,6 +78,7 @@ async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global chat_id
     chat_id = update.effective_chat.id
+    logger.info(f"[set_chat] Chat ID set to: {chat_id}")
     await update.message.reply_text("✅ Bu chat yadda saxlanıldı. Bot bura səsverməni göndərəcək.")
 
 async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,13 +92,15 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vote))
 
     scheduler = BackgroundScheduler()
-    # для теста: запускаем сразу через 10 сек
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop), 'date', run_date=datetime.now().replace(second=0, microsecond=0) + timedelta(seconds=10))
-    # реальный график
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop), 'cron', day_of_week='mon', hour=20)
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop), 'cron', day_of_week='wed', hour=20)
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
+                      'date', run_date=datetime.now().replace(second=0, microsecond=0) + timedelta(seconds=10))
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
+                      'cron', day_of_week='mon', hour=20)
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
+                      'cron', day_of_week='wed', hour=20)
     scheduler.start()
 
+    logger.info("Bot started successfully.")
     app.run_polling()
 
 if __name__ == "__main__":
