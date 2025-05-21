@@ -16,7 +16,9 @@ logging.basicConfig(
 )
 
 # Get token from env
-TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
+TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    raise ValueError("No TOKEN environment variable set!")
 
 # Message text
 VOTE_MESSAGE = "⚽️ Football on Wednesday at 20:00!\nAre you coming? Press ➕ or ➖"
@@ -61,4 +63,63 @@ async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
 # Schedules start vote
 async def start_vote(context: ContextTypes.DEFAULT_TYPE):
     logging.info("Starting vote...")
-    await sen
+    await send_vote_message(context.application)
+
+# Schedules stop vote
+async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
+    logging.info("Stopping vote...")
+    clear_voters()
+    await context.bot.send_message(chat_id=chat_id, text="📭 Voting closed. The list has been cleared.")
+
+# Callback handler for buttons
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    name = query.from_user.full_name
+    logging.info(f"Button clicked: {query.data} by {name}")
+    if query.data == "yes":
+        voters.add(name)
+    elif query.data == "no" and name in voters:
+        voters.remove(name)
+    await update_vote_message(context)
+
+# /setchat to define chat_id
+async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global chat_id
+    chat_id = update.effective_chat.id
+    logging.info(f"Chat ID set to: {chat_id}")
+    await update.message.reply_text("✅ This chat has been saved. The bot will post votes here.")
+
+# /list command to show current list
+async def list_voters(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if voters:
+        text = "📝 Current players:\n" + "\n".join(f"• {name}" for name in voters)
+    else:
+        text = "📝 No one has voted yet."
+    await update.message.reply_text(text)
+
+# /startvote to trigger manually
+async def manual_start_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await start_vote(context)
+
+# App entry
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    # Handlers
+    app.add_handler(CommandHandler("setchat", set_chat))
+    app.add_handler(CommandHandler("list", list_voters))
+    app.add_handler(CommandHandler("startvote", manual_start_vote))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    # Scheduler jobs
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop), 'cron', day_of_week='mon', hour=20)
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop), 'cron', day_of_week='wed', hour=20)
+    scheduler.start()
+
+    logging.info("Bot started.")
+    app.run_polling()
+
+if __name__ == '__main__':
+    main()
