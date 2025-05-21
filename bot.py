@@ -6,13 +6,12 @@ from datetime import datetime, timedelta
 import asyncio
 import os
 
-# Token from environment variable or hardcoded
+# Token
 TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
 
 # Globals
 voters = []
 chat_id = None
-vote_message_id = None
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -26,23 +25,9 @@ def format_list():
     return VOTE_HEADER + "\n".join([f"{i+1}. {name}" for i, name in enumerate(voters)])
 
 async def send_vote_message(context: ContextTypes.DEFAULT_TYPE):
-    global vote_message_id
     if chat_id:
-        msg = await context.bot.send_message(chat_id=chat_id, text=format_list())
-        vote_message_id = msg.message_id
-        logger.info(f"[send_vote_message] Sent vote message to chat {chat_id}, msg_id={vote_message_id}")
-
-async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
-    if chat_id and vote_message_id:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=vote_message_id,
-                text=format_list()
-            )
-            logger.info("[update_vote_message] Message updated successfully")
-        except Exception as e:
-            logger.warning(f"[update_vote_message] Failed to update: {e}")
+        await context.bot.send_message(chat_id=chat_id, text=format_list())
+        logger.info("[send_vote_message] Sent vote list")
 
 def clear_voters():
     global voters
@@ -74,44 +59,38 @@ async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if name not in voters:
             voters.append(name)
             logger.info(f"[handle_vote] + {name}")
-            await update_vote_message(context)
+            await send_vote_message(context)
     elif text == "-":
         if name in voters:
             voters.remove(name)
             logger.info(f"[handle_vote] - {name}")
-            await update_vote_message(context)
+            await send_vote_message(context)
 
 async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global chat_id
     chat_id = update.effective_chat.id
     logger.info(f"[set_chat] Chat ID saved: {chat_id}")
     await update.message.reply_text("✅ Bu chat yadda saxlanıldı. Bot bura səsverməni göndərəcək.")
+    await start_vote(context)  # Сразу начинаем голосование
 
 async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(format_list())
-
-async def vote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info("[vote_command] Manual vote start triggered")
-    await start_vote(context)
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("setchat", set_chat))
     app.add_handler(CommandHandler("list", list_command))
-    app.add_handler(CommandHandler("vote", vote_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vote))
 
     scheduler = BackgroundScheduler()
-    
-    # Запускаем вручную или по расписанию
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
                       'cron', day_of_week='mon', hour=20)
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
                       'cron', day_of_week='wed', hour=20)
-
     scheduler.start()
-    logger.info("✅ Bot started successfully. Waiting for commands.")
+
+    logger.info("✅ Bot started successfully.")
     app.run_polling()
 
 if __name__ == "__main__":
