@@ -5,9 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import asyncio
 import os
 
-TOKEN = os.getenv("TOKEN")
-if not TOKEN:
-    raise ValueError("No TOKEN environment variable set!")
+TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
 
 VOTE_MESSAGE = "⚽️ Футбол в среду в 20:00!\nКто идёт? Жми ➕ или ➖"
 
