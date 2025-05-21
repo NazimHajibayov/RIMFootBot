@@ -74,7 +74,6 @@ async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     logger.info(f"[set_chat] Chat ID saved: {chat_id}")
     await update.message.reply_text("✅ Bu chat yadda saxlanıldı. Bot bura səsverməni göndərəcək.")
-    await start_vote(context)  # автоматический старт голосования при /setchat
 
 async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(format_list())
@@ -86,15 +85,18 @@ def main():
     app.add_handler(CommandHandler("list", list_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vote))
 
+    # Print current time for debug
+    logger.info(f"🕒 Now: {datetime.now(timezone('Asia/Baku'))}")
+
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    # 🟢 Понедельник 10:00 — старт голосования
+    # 🟢 Среда 11:36 — старт голосования
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=18)
+                      'cron', day_of_week='wed', hour=11, minute=36)
 
-    # 🔴 Среда 20:00 — завершение
+    # 🔴 Среда 11:37 — завершение голосования
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=20)
+                      'cron', day_of_week='wed', hour=11, minute=37)
 
     scheduler.start()
     logger.info("✅ Bot started successfully with Baku timezone.")
