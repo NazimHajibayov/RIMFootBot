@@ -90,11 +90,11 @@ def main():
 
     # 🟢 Понедельник 10:00 — старт голосования
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='mon', hour=10, minute=0)
+                      'cron', day_of_week='wed', hour=11, minute=18)
 
     # 🔴 Среда 20:00 — завершение
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=20, minute=0)
+                      'cron', day_of_week='wed', hour=11, minute=20)
 
     scheduler.start()
     logger.info("✅ Bot started successfully with Baku timezone.")
