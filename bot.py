@@ -7,8 +7,7 @@ from datetime import datetime
 import asyncio
 import os
 
-TOKEN = os.getenv("TOKEN")
-print("TOKEN =", TOKEN)
+TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
 
 VOTE_MESSAGE = "⚽️ Футбол в среду в 20:00!\nКто идёт? Жми ➕ или ➖"
 
