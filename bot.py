@@ -1,10 +1,9 @@
 import logging
+import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
-import asyncio
-import os
 from pytz import timezone
 
 # Token
@@ -81,8 +80,10 @@ async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(format_list())
 
-def main():
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
+    await app.bot.delete_webhook(drop_pending_updates=True)
 
     app.add_handler(CommandHandler("setchat", set_chat))
     app.add_handler(CommandHandler("list", list_command))
@@ -92,17 +93,18 @@ def main():
 
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    # 🟢 Wednesday 11:58 – Start voting
+    # 🟢 Wednesday 12:05 – Start voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=58)
+                      'cron', day_of_week='wed', hour=12, minute=5)
 
-    # 🔴 Wednesday 11:59 – Stop voting
+    # 🔴 Wednesday 12:06 – Stop voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=59)
+                      'cron', day_of_week='wed', hour=12, minute=6)
 
     scheduler.start()
     logger.info("✅ Scheduler started (Asia/Baku)")
-    app.run_polling()
+
+    await app.run_polling(allowed_updates=[])
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
