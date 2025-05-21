@@ -61,10 +61,18 @@ async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     await update.message.reply_text("✅ This chat has been saved. The bot will post votes here.")
 
+async def list_voters(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not voters:
+        await update.message.reply_text("📝 No one has voted yet.")
+    else:
+        text = "📋 Current list of players:\n" + "\n".join(f"• {name}" for name in voters)
+        await update.message.reply_text(text)
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("setchat", set_chat))
+    app.add_handler(CommandHandler("list", list_voters))
     app.add_handler(CallbackQueryHandler(button_handler))
 
     scheduler = BackgroundScheduler(timezone="Asia/Baku")
