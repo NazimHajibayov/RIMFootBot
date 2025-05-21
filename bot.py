@@ -8,6 +8,7 @@ import asyncio
 import os
 
 TOKEN = os.getenv("TOKEN")
+print("TOKEN =", TOKEN)
 
 VOTE_MESSAGE = "⚽️ Футбол в среду в 20:00!\nКто идёт? Жми ➕ или ➖"
 
