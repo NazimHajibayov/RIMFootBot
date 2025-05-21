@@ -1,123 +1,97 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, ContextTypes,
-    CommandHandler, CallbackQueryHandler
-)
+from telegram import Update
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 import asyncio
 import os
 
-# Configure logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
-
-# Get token from env
 TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
 
-# Message text
-VOTE_MESSAGE = "⚽️ Football on Wednesday at 20:00!\nAre you coming? Press ➕ or ➖"
-
-# State variables
-voters = set()
+voters = []
 chat_id = None
 vote_message_id = None
 
-# Sends the vote message
-async def send_vote_message(app):
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+VOTE_HEADER = "Cybernet Football:\n3-cü gün 20:00 oyununa gələnlər. Siyahıya qoşulmaq üçün `+`, çıxmaq ücün isə `-` yazın:\n"
+
+def format_list():
+    if not voters:
+        return VOTE_HEADER + "(hələ heç kim yazılmayıb)"
+    return VOTE_HEADER + "\n".join([f"{i+1}. {name}" for i, name in enumerate(voters)])
+
+async def send_vote_message(context: ContextTypes.DEFAULT_TYPE):
     global vote_message_id
     if chat_id:
-        logging.info("Sending vote message to chat_id: %s", chat_id)
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("➕ Coming", callback_data="yes"),
-            InlineKeyboardButton("➖ Not coming", callback_data="no")
-        ]])
-        message = await app.bot.send_message(chat_id=chat_id, text=VOTE_MESSAGE, reply_markup=keyboard)
-        vote_message_id = message.message_id
+        msg = await context.bot.send_message(chat_id=chat_id, text=format_list())
+        vote_message_id = msg.message_id
 
-# Clears the voter list
+async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
+    if chat_id and vote_message_id:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=vote_message_id,
+                text=format_list()
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update message: {e}")
+
 def clear_voters():
-    logging.info("Clearing voters list")
     global voters
     voters.clear()
 
-# Updates the vote message with current voter list
-async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
-    if chat_id and vote_message_id:
-        logging.info("Updating vote message")
-        text = VOTE_MESSAGE + "\n\n" + "\n".join(f"• {name}" for name in voters) if voters else VOTE_MESSAGE + "\n\n📝 No one has voted yet."
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("➕ Coming", callback_data="yes"),
-            InlineKeyboardButton("➖ Not coming", callback_data="no")
-        ]])
-        try:
-            await context.bot.edit_message_text(chat_id=chat_id, message_id=vote_message_id, text=text, reply_markup=keyboard)
-        except Exception as e:
-            logging.error(f"Failed to update message: {e}")
-
-# Schedules start vote
 async def start_vote(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("Starting vote...")
-    await send_vote_message(context.application)
-
-# Schedules stop vote
-async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
-    logging.info("Stopping vote...")
     clear_voters()
-    await context.bot.send_message(chat_id=chat_id, text="📭 Voting closed. The list has been cleared.")
+    await send_vote_message(context)
 
-# Callback handler for buttons
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    name = query.from_user.full_name
-    logging.info(f"Button clicked: {query.data} by {name}")
-    if query.data == "yes":
-        voters.add(name)
-    elif query.data == "no" and name in voters:
-        voters.remove(name)
-    await update_vote_message(context)
+async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
+    clear_voters()
+    await context.bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
 
-# /setchat to define chat_id
+async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global voters
+    if not chat_id or update.effective_chat.id != chat_id:
+        return
+
+    name = update.message.from_user.full_name
+    text = update.message.text.strip()
+
+    if text == "+":
+        if name not in voters:
+            voters.append(name)
+            await update_vote_message(context)
+    elif text == "-":
+        if name in voters:
+            voters.remove(name)
+            await update_vote_message(context)
+
 async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global chat_id
     chat_id = update.effective_chat.id
-    logging.info(f"Chat ID set to: {chat_id}")
-    await update.message.reply_text("✅ This chat has been saved. The bot will post votes here.")
+    await update.message.reply_text("✅ Bu chat yadda saxlanıldı. Bot bura səsverməni göndərəcək.")
 
-# /list command to show current list
-async def list_voters(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if voters:
-        text = "📝 Current players:\n" + "\n".join(f"• {name}" for name in voters)
-    else:
-        text = "📝 No one has voted yet."
-    await update.message.reply_text(text)
+async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(format_list())
 
-# /startvote to trigger manually
-async def manual_start_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await start_vote(context)
-
-# App entry
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # Handlers
     app.add_handler(CommandHandler("setchat", set_chat))
-    app.add_handler(CommandHandler("list", list_voters))
-    app.add_handler(CommandHandler("startvote", manual_start_vote))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(CommandHandler("list", list_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vote))
 
-    # Scheduler jobs
     scheduler = BackgroundScheduler()
+    # для теста: запускаем сразу через 10 сек
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop), 'date', run_date=datetime.now().replace(second=0, microsecond=0) + timedelta(seconds=10))
+    # реальный график
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop), 'cron', day_of_week='mon', hour=20)
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop), 'cron', day_of_week='wed', hour=20)
     scheduler.start()
 
-    logging.info("Bot started.")
     app.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
