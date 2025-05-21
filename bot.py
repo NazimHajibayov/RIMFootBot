@@ -1,9 +1,7 @@
-
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
 import asyncio
 import os
 
@@ -35,7 +33,7 @@ def clear_voters():
 
 async def update_vote_message(context: ContextTypes.DEFAULT_TYPE):
     if chat_id and vote_message_id:
-        text = VOTE_MESSAGE + "\n\n" + "\n".join(f"• {name}" for name in voters) if voters else VOTE_MESSAGE + "\n\n(пока никто не записался)"
+        text = VOTE_MESSAGE + "\n\n" + ("\n".join(f"• {name}" for name in voters) if voters else "(пока никто не записался)")
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("➕ Иду", callback_data="yes"),
              InlineKeyboardButton("➖ Не иду", callback_data="no")]
@@ -67,9 +65,16 @@ async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     await update.message.reply_text("✅ Чат сохранён. Теперь бот будет присылать сюда опрос.")
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Привет! Я бот для организации футбольных голосований.\n"
+        "Используй команду /setchat в чате, где хочешь получать опросы."
+    )
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("setchat", set_chat))
     app.add_handler(CallbackQueryHandler(button_handler))
 
