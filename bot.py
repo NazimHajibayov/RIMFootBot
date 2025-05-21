@@ -14,10 +14,11 @@ TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
 voters = []
 chat_id = None
 
-# Logging
+# Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Voting message
 VOTE_HEADER = "DOST Football:\n3-cü gün 20:00 oyununa gələnlər. Siyahıya qoşulmaq üçün `+`, çıxmaq ücün isə `-` yazın:\n"
 
 def format_list():
@@ -38,6 +39,7 @@ def clear_voters():
     logger.info("[clear_voters] Voter list cleared")
 
 async def start_vote(context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[start_vote] Triggered at {datetime.now(timezone('Asia/Baku'))}")
     if not chat_id:
         logger.warning("[start_vote] Chat ID is not set, aborting vote start")
         return
@@ -45,6 +47,7 @@ async def start_vote(context: ContextTypes.DEFAULT_TYPE):
     await send_vote_message(context, with_reminder=True)
 
 async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[stop_vote] Triggered at {datetime.now(timezone('Asia/Baku'))}")
     if chat_id:
         clear_voters()
         await context.bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
@@ -85,21 +88,20 @@ def main():
     app.add_handler(CommandHandler("list", list_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vote))
 
-    # Print current time for debug
-    logger.info(f"🕒 Now: {datetime.now(timezone('Asia/Baku'))}")
+    logger.info(f"🕒 Bot running at: {datetime.now(timezone('Asia/Baku'))}")
 
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    # 🟢 Среда 11:40 — старт голосования
+    # 🟢 Wednesday 11:45 – Start voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=40)
+                      'cron', day_of_week='wed', hour=11, minute=45)
 
-    # 🔴 Среда 11:41 — завершение голосования
+    # 🔴 Wednesday 11:46 – Stop voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=41)
+                      'cron', day_of_week='wed', hour=11, minute=46)
 
     scheduler.start()
-    logger.info("✅ Bot started successfully with Baku timezone.")
+    logger.info("✅ Scheduler started (Asia/Baku)")
     app.run_polling()
 
 if __name__ == "__main__":
