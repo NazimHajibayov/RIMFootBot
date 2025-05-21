@@ -26,11 +26,12 @@ def format_list():
         return VOTE_HEADER + "(hələ heç kim yazılmayıb)"
     return VOTE_HEADER + "\n".join([f"{i+1}. {name}" for i, name in enumerate(voters)])
 
-async def send_vote_message(context: ContextTypes.DEFAULT_TYPE, with_reminder: bool = False):
+async def send_vote_message(context: ContextTypes.DEFAULT_TYPE = None, with_reminder: bool = False):
     if chat_id:
-        if with_reminder:
+        if with_reminder and context:
             await context.bot.send_message(chat_id=chat_id, text="📢 Salam! DOST Futbol üçün qeydiyyat başladı. Kim gəlir? `+` yaz, çıxırsansa `-` yaz! ⚽️")
-        await context.bot.send_message(chat_id=chat_id, text=format_list())
+        if context:
+            await context.bot.send_message(chat_id=chat_id, text=format_list())
         logger.info("[send_vote_message] Sent vote list")
 
 def clear_voters():
@@ -38,7 +39,7 @@ def clear_voters():
     voters.clear()
     logger.info("[clear_voters] Voter list cleared")
 
-async def start_vote(context: ContextTypes.DEFAULT_TYPE):
+async def start_vote(context: ContextTypes.DEFAULT_TYPE = None):
     logger.info(f"[start_vote] Triggered at {datetime.now(timezone('Asia/Baku'))}")
     if not chat_id:
         logger.warning("[start_vote] Chat ID is not set, aborting vote start")
@@ -46,9 +47,9 @@ async def start_vote(context: ContextTypes.DEFAULT_TYPE):
     clear_voters()
     await send_vote_message(context, with_reminder=True)
 
-async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
+async def stop_vote(context: ContextTypes.DEFAULT_TYPE = None):
     logger.info(f"[stop_vote] Triggered at {datetime.now(timezone('Asia/Baku'))}")
-    if chat_id:
+    if chat_id and context:
         clear_voters()
         await context.bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
         logger.info("[stop_vote] Voting closed and list cleared")
@@ -93,21 +94,22 @@ async def main():
     logger.info(f"🕒 Bot running at: {datetime.now(timezone('Asia/Baku'))}")
 
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
+    loop = asyncio.get_running_loop()
 
-    # 🟢 Wednesday 12:10 – Start voting
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=12, minute=10)
+    # 🟢 Wednesday 12:14 – Start voting
+    scheduler.add_job(lambda: loop.create_task(start_vote(app)), 
+                      'cron', day_of_week='wed', hour=12, minute=14)
 
-    # 🔴 Wednesday 12:11 – Stop voting
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=12, minute=11)
+    # 🔴 Wednesday 12:15 – Stop voting
+    scheduler.add_job(lambda: loop.create_task(stop_vote(app)), 
+                      'cron', day_of_week='wed', hour=12, minute=15)
 
     scheduler.start()
     logger.info("✅ Scheduler started (Asia/Baku)")
 
     await app.run_polling(allowed_updates=[])
 
-# 🔁 Safe run for Railway / Linux / Nix
+# 🔁 Safe for Railway / Linux
 if __name__ == "__main__":
     nest_asyncio.apply()
     asyncio.get_event_loop().run_until_complete(main())
