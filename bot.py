@@ -113,13 +113,13 @@ async def main():
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
     loop = asyncio.get_running_loop()
 
-    # 🟢 Wednesday 12:20 – Start voting
+    # 🟢 Monday 10:00 – Start voting
     scheduler.add_job(lambda: loop.create_task(start_vote()), 
-                      'cron', day_of_week='wed', hour=12, minute=20)
+                      'cron', day_of_week='mon', hour=10, minute=00)
 
-    # 🔴 Wednesday 12:21 – Stop voting
+    # 🔴 Wednesday 20:00 – Stop voting
     scheduler.add_job(lambda: loop.create_task(stop_vote()), 
-                      'cron', day_of_week='wed', hour=12, minute=21)
+                      'cron', day_of_week='wed', hour=20, minute=00)
 
     scheduler.start()
     logger.info("✅ Scheduler started (Asia/Baku)")
