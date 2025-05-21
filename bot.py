@@ -16,9 +16,7 @@ logging.basicConfig(
 )
 
 # Get token from env
-TOKEN = os.getenv("TOKEN")
-if not TOKEN:
-    raise ValueError("No TOKEN environment variable set!")
+TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
 
 # Message text
 VOTE_MESSAGE = "⚽️ Football on Wednesday at 20:00!\nAre you coming? Press ➕ or ➖"
