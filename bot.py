@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import nest_asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -93,18 +94,20 @@ async def main():
 
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    # 🟢 Wednesday 12:05 – Start voting
+    # 🟢 Wednesday 12:10 – Start voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=12, minute=5)
+                      'cron', day_of_week='wed', hour=12, minute=10)
 
-    # 🔴 Wednesday 12:06 – Stop voting
+    # 🔴 Wednesday 12:11 – Stop voting
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=12, minute=6)
+                      'cron', day_of_week='wed', hour=12, minute=11)
 
     scheduler.start()
     logger.info("✅ Scheduler started (Asia/Baku)")
 
     await app.run_polling(allowed_updates=[])
 
+# 🔁 Safe run for Railway / Linux / Nix
 if __name__ == "__main__":
-    asyncio.run(main())
+    nest_asyncio.apply()
+    asyncio.get_event_loop().run_until_complete(main())
