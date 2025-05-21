@@ -2,7 +2,7 @@ import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime, timedelta
+from datetime import datetime
 import asyncio
 import os
 from pytz import timezone
@@ -90,13 +90,13 @@ def main():
 
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    # 🟢 Среда 11:36 — старт голосования
+    # 🟢 Среда 11:40 — старт голосования
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=36)
+                      'cron', day_of_week='wed', hour=11, minute=40)
 
-    # 🔴 Среда 11:37 — завершение голосования
+    # 🔴 Среда 11:41 — завершение голосования
     scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=11, minute=37)
+                      'cron', day_of_week='wed', hour=11, minute=41)
 
     scheduler.start()
     logger.info("✅ Bot started successfully with Baku timezone.")
