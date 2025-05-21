@@ -5,6 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import asyncio
 import os
+from pytz import timezone
 
 # Token
 TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
@@ -17,15 +18,17 @@ chat_id = None
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-VOTE_HEADER = "DOST Football:\n3-cü gün 20:00 oyununa gələnlər. Siyahıya qoşulmaq üçün `+`, çıxmaq ücün isə `-` yazın:\n"
+VOTE_HEADER = "Cybernet Football:\n3-cü gün 20:00 oyununa gələnlər. Siyahıya qoşulmaq üçün `+`, çıxmaq ücün isə `-` yazın:\n"
 
 def format_list():
     if not voters:
         return VOTE_HEADER + "(hələ heç kim yazılmayıb)"
     return VOTE_HEADER + "\n".join([f"{i+1}. {name}" for i, name in enumerate(voters)])
 
-async def send_vote_message(context: ContextTypes.DEFAULT_TYPE):
+async def send_vote_message(context: ContextTypes.DEFAULT_TYPE, with_reminder: bool = False):
     if chat_id:
+        if with_reminder:
+            await context.bot.send_message(chat_id=chat_id, text="📢 Salam! Cybernet Futbol üçün qeydiyyat başladı. Kim gəlir? `+` yaz, çıxırsansa `-` yaz! ⚽️")
         await context.bot.send_message(chat_id=chat_id, text=format_list())
         logger.info("[send_vote_message] Sent vote list")
 
@@ -39,7 +42,7 @@ async def start_vote(context: ContextTypes.DEFAULT_TYPE):
         logger.warning("[start_vote] Chat ID is not set, aborting vote start")
         return
     clear_voters()
-    await send_vote_message(context)
+    await send_vote_message(context, with_reminder=True)
 
 async def stop_vote(context: ContextTypes.DEFAULT_TYPE):
     if chat_id:
@@ -71,7 +74,7 @@ async def set_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     logger.info(f"[set_chat] Chat ID saved: {chat_id}")
     await update.message.reply_text("✅ Bu chat yadda saxlanıldı. Bot bura səsverməni göndərəcək.")
-    await start_vote(context)  # Сразу начинаем голосование
+    await start_vote(context)  # автоматический старт голосования при /setchat
 
 async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(format_list())
@@ -83,14 +86,18 @@ def main():
     app.add_handler(CommandHandler("list", list_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vote))
 
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
-                      'cron', day_of_week='mon', hour=20)
-    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
-                      'cron', day_of_week='wed', hour=20)
-    scheduler.start()
+    scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
 
-    logger.info("✅ Bot started successfully.")
+    # 🟢 Понедельник 10:00 — старт голосования
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(start_vote(app), app.loop),
+                      'cron', day_of_week='mon', hour=10, minute=0)
+
+    # 🔴 Среда 20:00 — завершение
+    scheduler.add_job(lambda: asyncio.run_coroutine_threadsafe(stop_vote(app), app.loop),
+                      'cron', day_of_week='wed', hour=20, minute=0)
+
+    scheduler.start()
+    logger.info("✅ Bot started successfully with Baku timezone.")
     app.run_polling()
 
 if __name__ == "__main__":
