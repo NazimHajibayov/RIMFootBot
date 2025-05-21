@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import nest_asyncio
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
@@ -26,12 +26,24 @@ def format_list():
         return VOTE_HEADER + "(hələ heç kim yazılmayıb)"
     return VOTE_HEADER + "\n".join([f"{i+1}. {name}" for i, name in enumerate(voters)])
 
+def is_voting_open() -> bool:
+    now = datetime.now(timezone("Asia/Baku"))
+    weekday = now.weekday()  # Monday=0, Sunday=6
+
+    if weekday == 0 and now.hour >= 10:
+        return True
+    elif 0 < weekday < 2:
+        return True
+    elif weekday == 2 and now.hour < 20:
+        return True
+    return False
+
 async def send_vote_message(context: ContextTypes.DEFAULT_TYPE = None, with_reminder: bool = False):
     if chat_id:
-        if with_reminder and context:
-            await context.bot.send_message(chat_id=chat_id, text="📢 Salam! DOST Futbol üçün qeydiyyat başladı. Kim gəlir? `+` yaz, çıxırsansa `-` yaz! ⚽️")
-        if context:
-            await context.bot.send_message(chat_id=chat_id, text=format_list())
+        bot = Bot(token=TOKEN)
+        if with_reminder:
+            await bot.send_message(chat_id=chat_id, text="📢 Salam! DOST Futbol üçün qeydiyyat başladı. Kim gəlir? `+` yaz, çıxırsansa `-` yaz! ⚽️")
+        await bot.send_message(chat_id=chat_id, text=format_list())
         logger.info("[send_vote_message] Sent vote list")
 
 def clear_voters():
@@ -45,18 +57,23 @@ async def start_vote(context: ContextTypes.DEFAULT_TYPE = None):
         logger.warning("[start_vote] Chat ID is not set, aborting vote start")
         return
     clear_voters()
-    await send_vote_message(context, with_reminder=True)
+    await send_vote_message(with_reminder=True)
 
 async def stop_vote(context: ContextTypes.DEFAULT_TYPE = None):
     logger.info(f"[stop_vote] Triggered at {datetime.now(timezone('Asia/Baku'))}")
-    if chat_id and context:
+    if chat_id:
         clear_voters()
-        await context.bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
+        bot = Bot(token=TOKEN)
+        await bot.send_message(chat_id=chat_id, text="🛑 Səsvermə bağlandı. Siyahı sıfırlandı.")
         logger.info("[stop_vote] Voting closed and list cleared")
 
 async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global voters
     if not chat_id or update.effective_chat.id != chat_id:
+        return
+
+    if not is_voting_open():
+        logger.info(f"[handle_vote] Ignored vote outside allowed time: {update.message.text}")
         return
 
     name = update.message.from_user.full_name
@@ -96,13 +113,13 @@ async def main():
     scheduler = BackgroundScheduler(timezone=timezone("Asia/Baku"))
     loop = asyncio.get_running_loop()
 
-    # 🟢 Wednesday 12:14 – Start voting
-    scheduler.add_job(lambda: loop.create_task(start_vote(app)), 
-                      'cron', day_of_week='wed', hour=12, minute=14)
+    # 🟢 Wednesday 12:20 – Start voting
+    scheduler.add_job(lambda: loop.create_task(start_vote()), 
+                      'cron', day_of_week='wed', hour=12, minute=20)
 
-    # 🔴 Wednesday 12:15 – Stop voting
-    scheduler.add_job(lambda: loop.create_task(stop_vote(app)), 
-                      'cron', day_of_week='wed', hour=12, minute=15)
+    # 🔴 Wednesday 12:21 – Stop voting
+    scheduler.add_job(lambda: loop.create_task(stop_vote()), 
+                      'cron', day_of_week='wed', hour=12, minute=21)
 
     scheduler.start()
     logger.info("✅ Scheduler started (Asia/Baku)")
