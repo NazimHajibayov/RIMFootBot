@@ -8,7 +8,7 @@ from datetime import datetime
 from pytz import timezone
 
 # Token
-TOKEN = "7967415879:AAH4n39ijxskeYDcLU7Yw3jf3oJG-J-QTx4"
+TOKEN = "7967415879:AAGSPaSSFLZZZQPUdnMzOT_uKbLWp2Usk4Y"
 
 # Globals
 voters = []
